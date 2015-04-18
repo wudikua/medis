@@ -1,12 +1,12 @@
 package datasource
 
 import (
-	"medis/logger"
 	"sync"
 )
 
 // 一组数据源，维护了读写分离，主备切换
 type Group struct {
+	name    string
 	reader  *ClientPriorityList
 	writer  *ClientPriorityList
 	clients []*ClientWeightWrapper
@@ -15,12 +15,17 @@ type Group struct {
 
 type ClientWeightSame []*ClientWeightWrapper
 
-func NewGroup() *Group {
+func NewGroup(name string) *Group {
 	var mutex sync.RWMutex
 	return &Group{
+		name:    name,
 		clients: make([]*ClientWeightWrapper, 0),
 		reload:  mutex,
 	}
+}
+
+func (self *Group) String() string {
+	return self.name
 }
 
 func (self *Group) AddClient(client *ClientWeightWrapper) {
@@ -59,7 +64,6 @@ func (self *Group) parseProiority(isWrite bool) *ClientPriorityList {
 			clientLevel[compareP] = append(clientLevel[compareP], c)
 		}
 	}
-	logger.LogInfo(clientLevel)
 	// 头指针
 	var head *ClientPriorityList
 	// 工作指针

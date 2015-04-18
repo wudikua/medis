@@ -47,9 +47,13 @@ func NewMysqlClient(user string, password string, host string, port int, db stri
 }
 
 func (self *MysqlClient) String() string {
-	return fmt.Sprintf("MysqlClient connected %s:%d %s\n", self.ctx.host, self.ctx.port, self.ctx.db)
+	return fmt.Sprintf("MysqlClient connected %s:%d %s", self.ctx.host, self.ctx.port, self.ctx.db)
 }
 
 func (self *MysqlClient) GetDB() *sql.DB {
 	return self.db
+}
+
+func (self *MysqlClient) GetName() string {
+	return self.ctx.db
 }

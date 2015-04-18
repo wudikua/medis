@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"fmt"
+	"medis/logger"
 	"medis/mysql"
 	"medis/shard"
 )
@@ -32,11 +33,12 @@ func (self *DBAdapter) String() string {
 }
 
 func (self *DBAdapter) GenKey(key string, keyType int, client *mysql.MysqlClient) (int64, error) {
+	logger.LogDebug("gen key use client", client)
 	db := client.GetDB()
 	id := int64(-1)
-	db.QueryRow("SELECT `test`.`db`.`id` from `test`.`db` WHERE `test`.`db`.`key`=?", key).Scan(&id)
+	db.QueryRow("SELECT `db`.`id` from `db` WHERE `db`.`key`=?", key).Scan(&id)
 	if id < 0 {
-		stmt, err := db.Prepare("INSERT INTO `test`.`db` (`id`, `type`, `key`) VALUES (NULL, ?, ?)")
+		stmt, err := db.Prepare("INSERT INTO `db` (`id`, `type`, `key`) VALUES (NULL, ?, ?)")
 		defer stmt.Close()
 		if err != nil {
 			return -1, err
@@ -57,7 +59,7 @@ func (self *DBAdapter) GetKeyType(key string) int {
 	groups := self.selector.Shard(key, false)
 	db := groups[0].GetDB(false).GetClient().GetDB()
 	keyType := -1
-	db.QueryRow("SELECT `test`.`db`.`type` FROM `test`.`db` WHERE `db`.`key`=?", key).Scan(&keyType)
+	db.QueryRow("SELECT `db`.`type` FROM `db` WHERE `db`.`key`=?", key).Scan(&keyType)
 	return keyType
 }
 
@@ -65,7 +67,7 @@ func (self *DBAdapter) GetKeyID(key string) int {
 	groups := self.selector.Shard(key, false)
 	db := groups[0].GetDB(false).GetClient().GetDB()
 	keyID := -1
-	db.QueryRow("SELECT `test`.`db`.`id` FROM `test`.`db` WHERE `db`.`key`=?", key).Scan(&keyID)
+	db.QueryRow("SELECT `db`.`id` FROM `db` WHERE `db`.`key`=?", key).Scan(&keyID)
 	return keyID
 }
 
@@ -91,7 +93,7 @@ func (self *DBAdapter) Del(key string) error {
 	groups := self.selector.Shard(key, true)
 	for _, g := range groups {
 		db := g.GetDB(true).GetClient().GetDB()
-		stmt, err := db.Prepare("DELETE FROM `test`.`db` where `db`.`key`=?")
+		stmt, err := db.Prepare("DELETE FROM `db` where `db`.`key`=?")
 		defer stmt.Close()
 		if err != nil {
 			return err
@@ -109,7 +111,7 @@ func (self *DBAdapter) FlushTable(table string) error {
 	groups := self.selector.All()
 	for _, g := range groups {
 		db := g.GetDB(true).GetClient().GetDB()
-		stmt, err := db.Prepare("delete from `test`.`" + table + "`")
+		stmt, err := db.Prepare("delete from `" + table + "`")
 		defer stmt.Close()
 		if err != nil {
 			return err

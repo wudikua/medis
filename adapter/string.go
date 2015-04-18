@@ -26,7 +26,7 @@ func (self *StringAdapter) Set(key string, value []byte) error {
 			return err
 		}
 		db := g.GetDB(true).GetClient().GetDB()
-		stmt, err := db.Prepare("INSERT INTO `test`.`string` (`id`, `value`) VALUES (?, ?)")
+		stmt, err := db.Prepare("INSERT INTO `string` (`id`, `value`) VALUES (?, ?)")
 		defer stmt.Close()
 		if err != nil {
 			return err

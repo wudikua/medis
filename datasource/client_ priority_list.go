@@ -1,6 +1,8 @@
 package datasource
 
-import ()
+import (
+	"medis/logger"
+)
 
 // 一组不同权重的读或者写的数据源
 type ClientPriorityList struct {
@@ -39,6 +41,7 @@ func NewClientPriorityList(clients []*ClientWeightWrapper, priority int) *Client
 
 func (self *ClientPriorityList) SelectRead() *ClientWeightWrapper {
 	if self.num == 1 {
+		logger.LogDebug("select reader", self.clients[0].GetClient())
 		return self.clients[0]
 	}
 	for {
@@ -54,6 +57,7 @@ func (self *ClientPriorityList) SelectRead() *ClientWeightWrapper {
 		}
 
 		if weight := self.clients[self.i].r; weight >= self.cw {
+			logger.LogDebug("select reader ", self.clients[self.i].GetClient())
 			return self.clients[self.i]
 		}
 	}
@@ -65,6 +69,7 @@ func (self *ClientPriorityList) SelectRead() *ClientWeightWrapper {
 
 func (self *ClientPriorityList) SelectWrite() *ClientWeightWrapper {
 	if self.num == 1 {
+		logger.LogDebug("select writer ", self.clients[0].GetClient())
 		return self.clients[0]
 	}
 	for {
@@ -80,6 +85,7 @@ func (self *ClientPriorityList) SelectWrite() *ClientWeightWrapper {
 		}
 
 		if weight := self.clients[self.i].w; weight >= self.cw {
+			logger.LogDebug("select writer ", self.clients[self.i].GetClient())
 			return self.clients[self.i]
 		}
 	}

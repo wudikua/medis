@@ -3,6 +3,7 @@ package shard
 import (
 	"hash/crc32"
 	"medis/datasource"
+	"medis/logger"
 	"sync"
 )
 
@@ -37,13 +38,16 @@ func (self *Selector) Shard(key string, isWrite bool) []*datasource.Group {
 	if !isWrite || !self.scaling {
 		i := int(crc32.ChecksumIEEE(data)) % len(self.runtime)
 		ds[0] = self.runtime[i]
+		logger.LogDebug("selector runtime", self.runtime[i], "at", i)
 	} else {
 		oldIdx := int(crc32.ChecksumIEEE(data)) % len(self.runtime)
 		newIdx := int(crc32.ChecksumIEEE(data)) % len(self.scale)
 		// 实际上这部分扩容期间的写入是冗余的
 		ds[0] = self.runtime[oldIdx]
+		logger.LogDebug("selector runtime", self.runtime[oldIdx], "at", oldIdx)
 		if oldIdx != newIdx {
 			ds = append(ds, self.scale[newIdx])
+			logger.LogDebug("selector scale ", self.scale[newIdx], "at", newIdx)
 		}
 	}
 	return ds

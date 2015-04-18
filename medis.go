@@ -25,11 +25,11 @@ func main() {
 		log.Fatal(err)
 	}
 	// 创建主从关系
-	group0 := datasource.NewGroup()
+	group0 := datasource.NewGroup("group0")
 	group0.AddClient(datasource.NewClientWeightWrapper("group0_master_0", master0, 0, 1, 0, 1))
 	group0.AddClient(datasource.NewClientWeightWrapper("group0_slave_0", master0, 1, 0, 1, 0))
 	group0.Init()
-	group1 := datasource.NewGroup()
+	group1 := datasource.NewGroup("group1")
 	group1.AddClient(datasource.NewClientWeightWrapper("group1_master_0", master1, 0, 1, 0, 1))
 	group1.AddClient(datasource.NewClientWeightWrapper("group1_slave_0", master1, 1, 0, 1, 0))
 	group1.Init()

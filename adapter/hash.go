@@ -26,7 +26,7 @@ func (self *HashAdapter) HSet(key, hkey string, value []byte) error {
 		if err != nil {
 			return err
 		}
-		stmt, err := db.Prepare("INSERT INTO `test`.`hash` (`id`, `hkey`, `hvalue`) VALUES (?, ?, ?)")
+		stmt, err := db.Prepare("INSERT INTO `hash` (`id`, `hkey`, `hvalue`) VALUES (?, ?, ?)")
 		defer stmt.Close()
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (self *HashAdapter) Del(key string) error {
 	groups := self.db.selector.Shard(key, true)
 	for _, g := range groups {
 		db := g.GetDB(true).GetClient().GetDB()
-		stmt, err := db.Prepare("delete from `test`.`hash` where `test`.`hash`.`id`=?")
+		stmt, err := db.Prepare("delete from `hash` where `hash`.`id`=?")
 		defer stmt.Close()
 		if err != nil {
 			return err
