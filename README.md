@@ -31,3 +31,24 @@ group1.Init()
 * 首先一个group中是按照优先级优先选择mysql，高优先级还可用时才用低优先级
 * 所以低优先级的mysql可以理解为备机
 * 其次读写权重的意义是，按照权重的来选择用哪个mysql，一般写只有一个，所以写权重意义目前不大
+
+## 已经兼容的redis操作列表
+
+* Del
+* FlushAll
+* Get
+* Hget
+* Hgetall
+* Hset
+* Lrange
+* Ping
+* Rpush
+* Set
+* Slaveof
+* Type
+* Zadd
+* Zcard
+* Zrange
+* Zrangebyscore
+* Zrem
+* Zscore
