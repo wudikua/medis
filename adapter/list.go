@@ -3,7 +3,6 @@ package adapter
 import (
 	"errors"
 	"fmt"
-	"medis/mysql"
 	"sync"
 )
 
@@ -12,11 +11,7 @@ type ListAdapter struct {
 	sync.RWMutex
 }
 
-func NewListAdapter(client *mysql.MysqlClient) (*ListAdapter, error) {
-	db, err := NewDBAdapter(client)
-	if err != nil {
-		return nil, err
-	}
+func NewListAdapter(db *DBAdapter) (*ListAdapter, error) {
 	return &ListAdapter{
 		db: db,
 	}, nil
@@ -27,34 +22,41 @@ func (self *ListAdapter) String() string {
 }
 
 func (self *ListAdapter) Rpush(key string, value []byte, values ...[]byte) (int, error) {
-	db := self.db.client.GetDB()
-	id, err := self.db.GenKey(key, KEY_TYPE_LIST)
-	if err != nil {
-		fmt.Println(err)
-		return 0, err
-	}
-	length := 0
-	self.Lock()
-	defer self.Unlock()
-	_ = db.QueryRow("SELECT `list`.`index` FROM `list` left join `db` on `db`.`id`=`list`.`id` WHERE `db`.`key`=? order by `list`.`index` desc limit 1", key).Scan(&length)
-	stmt, err := db.Prepare("INSERT INTO `test`.`list` (`id`, `index`, `value`) VALUES (?, ?, ?)")
-	defer stmt.Close()
-	if err != nil {
-		return 0, err
-	}
-	length += 1
-	_, err = stmt.Exec(id, length, value)
-	if err != nil {
-		return 0, err
-	}
-	for _, val := range values {
-		length += 1
-		_, err = stmt.Exec(id, length, val)
+	groups := self.db.selector.Shard(key, true)
+	maxLength := 0
+	for _, g := range groups {
+		db := g.GetDB(true).GetClient().GetDB()
+		id, err := self.db.GenKey(key, KEY_TYPE_LIST, g.GetDB(true).GetClient())
+		if err != nil {
+			fmt.Println(err)
+			return 0, err
+		}
+		self.Lock()
+		length := 0
+		defer self.Unlock()
+		_ = db.QueryRow("SELECT `list`.`index` FROM `list` left join `db` on `db`.`id`=`list`.`id` WHERE `db`.`key`=? order by `list`.`index` desc limit 1", key).Scan(&length)
+		stmt, err := db.Prepare("INSERT INTO `list` (`id`, `index`, `value`) VALUES (?, ?, ?)")
+		defer stmt.Close()
 		if err != nil {
 			return 0, err
 		}
+		length += 1
+		_, err = stmt.Exec(id, length, value)
+		if err != nil {
+			return 0, err
+		}
+		for _, val := range values {
+			length += 1
+			_, err = stmt.Exec(id, length, val)
+			if err != nil {
+				return 0, err
+			}
+		}
+		if length > maxLength {
+			maxLength = length
+		}
 	}
-	return length, nil
+	return maxLength, nil
 }
 
 func (self *ListAdapter) Lrange(key string, start, stop int) ([][]byte, error) {
@@ -63,7 +65,7 @@ func (self *ListAdapter) Lrange(key string, start, stop int) ([][]byte, error) {
 		return nil, errors.New("stop - start less than 0")
 	}
 	result := make([][]byte, size)
-	db := self.db.client.GetDB()
+	db := self.db.GetReaderClient(key).GetDB()
 	var value []byte
 	rows, err := db.Query("SELECT `list`.`value` FROM `list` left join `db` on `db`.`id`=`list`.`id` WHERE `db`.`key`=? and `list`.`index` between ? and ?",
 		key, start, stop+1)
@@ -86,15 +88,22 @@ func (self *ListAdapter) Lrange(key string, start, stop int) ([][]byte, error) {
 	return result, nil
 }
 
-func (self *ListAdapter) Del(id int) error {
-	db := self.db.client.GetDB()
-	stmt, err := db.Prepare("delete from `test`.`list` where `test`.`list`.`id`=?")
-	defer stmt.Close()
-	if err != nil {
-		return err
+func (self *ListAdapter) Del(key string) error {
+	id := self.db.GetKeyID(key)
+	groups := self.db.selector.Shard(key, true)
+	for _, g := range groups {
+		db := g.GetDB(true).GetClient().GetDB()
+		stmt, err := db.Prepare("delete from `list` where `list`.`id`=?")
+		defer stmt.Close()
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec(id)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = stmt.Exec(id)
-	return err
+	return nil
 }
 
 func (self *ListAdapter) FlushAll() error {

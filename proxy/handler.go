@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"medis/adapter"
-	"medis/mysql"
 	"medis/rdb"
 	"medis/replication"
 	"sync"
@@ -19,32 +18,26 @@ type MedisHandler struct {
 	lock          sync.RWMutex
 }
 
-func NewMedisHandler() (*MedisHandler, error) {
+func NewMedisHandler(dbAdapter *adapter.DBAdapter) (*MedisHandler, error) {
 	var lock sync.RWMutex
+	var err error
 	medisHandler := &MedisHandler{
 		lock: lock,
 	}
-	client, err := mysql.NewMysqlClient("root", "root", "localhost", 8889, "test", "utf8")
+	medisHandler.dbAdapter = dbAdapter
+	medisHandler.stringAdapter, err = adapter.NewStringAdapter(medisHandler.dbAdapter)
 	if err != nil {
 		return nil, err
 	}
-	medisHandler.dbAdapter, err = adapter.NewDBAdapter(client)
+	medisHandler.hashAdapter, err = adapter.NewHashAdapter(medisHandler.dbAdapter)
 	if err != nil {
 		return nil, err
 	}
-	medisHandler.stringAdapter, err = adapter.NewStringAdapter(client)
+	medisHandler.listAdapter, err = adapter.NewListAdapter(medisHandler.dbAdapter)
 	if err != nil {
 		return nil, err
 	}
-	medisHandler.hashAdapter, err = adapter.NewHashAdapter(client)
-	if err != nil {
-		return nil, err
-	}
-	medisHandler.listAdapter, err = adapter.NewListAdapter(client)
-	if err != nil {
-		return nil, err
-	}
-	medisHandler.zsetAdapter, err = adapter.NewZSetAdapter(client)
+	medisHandler.zsetAdapter, err = adapter.NewZSetAdapter(medisHandler.dbAdapter)
 	if err != nil {
 		return nil, err
 	}
@@ -85,16 +78,16 @@ func (self *MedisHandler) Type(key string) ([]byte, error) {
 }
 
 func (self *MedisHandler) Del(key string) (int, error) {
-	innerId, keyType := self.dbAdapter.GetKeyType(key)
+	keyType := self.dbAdapter.GetKeyType(key)
 	switch keyType {
 	case adapter.KEY_TYPE_STRING:
-		self.stringAdapter.Del(innerId)
+		self.stringAdapter.Del(key)
 	case adapter.KEY_TYPE_HASH:
-		self.hashAdapter.Del(innerId)
+		self.hashAdapter.Del(key)
 	case adapter.KEY_TYPE_LIST:
-		self.listAdapter.Del(innerId)
+		self.listAdapter.Del(key)
 	case adapter.KEY_TYPE_ZSET:
-		self.zsetAdapter.Del(innerId)
+		self.zsetAdapter.Del(key)
 	}
 	return 1, self.dbAdapter.Del(key)
 }

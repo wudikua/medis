@@ -3,6 +3,7 @@ package adapter
 import (
 	"fmt"
 	"medis/mysql"
+	"medis/shard"
 )
 
 const (
@@ -13,21 +14,25 @@ const (
 )
 
 type DBAdapter struct {
-	client *mysql.MysqlClient
+	selector *shard.Selector
 }
 
-func NewDBAdapter(client *mysql.MysqlClient) (*DBAdapter, error) {
+func NewDBAdapter(selector *shard.Selector) (*DBAdapter, error) {
 	return &DBAdapter{
-		client: client,
+		selector: selector,
 	}, nil
 }
 
-func (self *DBAdapter) String() string {
-	return fmt.Sprintf("DBAdapter|%s", self.client)
+func (self *DBAdapter) GetReaderClient(key string) *mysql.MysqlClient {
+	return self.selector.Shard(key, false)[0].GetDB(false).GetClient()
 }
 
-func (self *DBAdapter) GenKey(key string, keyType int) (int64, error) {
-	db := self.client.GetDB()
+func (self *DBAdapter) String() string {
+	return fmt.Sprintf("DBAdapter")
+}
+
+func (self *DBAdapter) GenKey(key string, keyType int, client *mysql.MysqlClient) (int64, error) {
+	db := client.GetDB()
 	id := int64(-1)
 	db.QueryRow("SELECT `test`.`db`.`id` from `test`.`db` WHERE `test`.`db`.`key`=?", key).Scan(&id)
 	if id < 0 {
@@ -48,16 +53,24 @@ func (self *DBAdapter) GenKey(key string, keyType int) (int64, error) {
 	return id, nil
 }
 
-func (self *DBAdapter) GetKeyType(key string) (int, int) {
-	db := self.client.GetDB()
+func (self *DBAdapter) GetKeyType(key string) int {
+	groups := self.selector.Shard(key, false)
+	db := groups[0].GetDB(false).GetClient().GetDB()
 	keyType := -1
-	innerId := -1
-	db.QueryRow("SELECT `test`.`db`.`type`,`test`.`db`.`id` FROM `test`.`db` WHERE `db`.`key`=?", key).Scan(&keyType, &innerId)
-	return innerId, keyType
+	db.QueryRow("SELECT `test`.`db`.`type` FROM `test`.`db` WHERE `db`.`key`=?", key).Scan(&keyType)
+	return keyType
+}
+
+func (self *DBAdapter) GetKeyID(key string) int {
+	groups := self.selector.Shard(key, false)
+	db := groups[0].GetDB(false).GetClient().GetDB()
+	keyID := -1
+	db.QueryRow("SELECT `test`.`db`.`id` FROM `test`.`db` WHERE `db`.`key`=?", key).Scan(&keyID)
+	return keyID
 }
 
 func (self *DBAdapter) Type(key string) (string, error) {
-	_, keyType := self.GetKeyType(key)
+	keyType := self.GetKeyType(key)
 	keyString := ""
 	switch keyType {
 	case KEY_TYPE_STRING:
@@ -75,29 +88,36 @@ func (self *DBAdapter) Type(key string) (string, error) {
 }
 
 func (self *DBAdapter) Del(key string) error {
-	db := self.client.GetDB()
-	stmt, err := db.Prepare("DELETE FROM `test`.`db` where `db`.`key`=?")
-	defer stmt.Close()
-	if err != nil {
-		return err
-	}
-	_, err = stmt.Exec(key)
-	if err != nil {
-		return err
+	groups := self.selector.Shard(key, true)
+	for _, g := range groups {
+		db := g.GetDB(true).GetClient().GetDB()
+		stmt, err := db.Prepare("DELETE FROM `test`.`db` where `db`.`key`=?")
+		defer stmt.Close()
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec(key)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+
 }
 
 func (self *DBAdapter) FlushTable(table string) error {
-	db := self.client.GetDB()
-	stmt, err := db.Prepare("delete from `test`.`" + table + "`")
-	defer stmt.Close()
-	if err != nil {
-		return err
-	}
-	_, err = stmt.Exec()
-	if err != nil {
-		return err
+	groups := self.selector.All()
+	for _, g := range groups {
+		db := g.GetDB(true).GetClient().GetDB()
+		stmt, err := db.Prepare("delete from `test`.`" + table + "`")
+		defer stmt.Close()
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

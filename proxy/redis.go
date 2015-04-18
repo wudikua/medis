@@ -8,7 +8,7 @@ import (
 
 var server *redis.Server
 
-func ListenAndServeRedis() {
+func ListenAndServeRedis(handler *MedisHandler) {
 	var host string
 	var port int
 	flag.StringVar(&host, "h", "localhost", "host")
@@ -16,11 +16,10 @@ func ListenAndServeRedis() {
 	flag.Parse()
 
 	// 启动redis server
-	handler, err := NewMedisHandler()
+	server, err := redis.NewServer(redis.DefaultConfig().Proto("tcp").Host(host).Port(port).Handler(handler))
 	if err != nil {
-		log.Fatal("server crash on start ", err)
+		log.Fatal(err)
 	}
-	server, _ = redis.NewServer(redis.DefaultConfig().Proto("tcp").Host(host).Port(port).Handler(handler))
 
 	server.ListenAndServe()
 }

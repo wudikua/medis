@@ -23,3 +23,7 @@ func NewClientWeightWrapper(name string, client *mysql.MysqlClient, r int, w int
 	wrapper.q = q
 	return wrapper
 }
+
+func (self *ClientWeightWrapper) GetClient() *mysql.MysqlClient {
+	return self.client
+}

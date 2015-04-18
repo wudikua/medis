@@ -2,18 +2,13 @@ package adapter
 
 import (
 	"fmt"
-	"medis/mysql"
 )
 
 type StringAdapter struct {
 	db *DBAdapter
 }
 
-func NewStringAdapter(client *mysql.MysqlClient) (*StringAdapter, error) {
-	db, err := NewDBAdapter(client)
-	if err != nil {
-		return nil, err
-	}
+func NewStringAdapter(db *DBAdapter) (*StringAdapter, error) {
 	return &StringAdapter{
 		db: db,
 	}, nil
@@ -24,25 +19,28 @@ func (self *StringAdapter) String() string {
 }
 
 func (self *StringAdapter) Set(key string, value []byte) error {
-	id, err := self.db.GenKey(key, KEY_TYPE_STRING)
-	if err != nil {
-		return err
-	}
-	db := self.db.client.GetDB()
-	stmt, err := db.Prepare("INSERT INTO `test`.`string` (`id`, `value`) VALUES (?, ?)")
-	defer stmt.Close()
-	if err != nil {
-		return err
-	}
-	_, err = stmt.Exec(id, value)
-	if err != nil {
-		return err
+	groups := self.db.selector.Shard(key, true)
+	for _, g := range groups {
+		id, err := self.db.GenKey(key, KEY_TYPE_STRING, g.GetDB(true).GetClient())
+		if err != nil {
+			return err
+		}
+		db := g.GetDB(true).GetClient().GetDB()
+		stmt, err := db.Prepare("INSERT INTO `test`.`string` (`id`, `value`) VALUES (?, ?)")
+		defer stmt.Close()
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec(id, value)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (self *StringAdapter) Get(key string) ([]byte, error) {
-	db := self.db.client.GetDB()
+	db := self.db.GetReaderClient(key).GetDB()
 	var value []byte
 	err := db.QueryRow("SELECT `string`.`value` FROM `string` left join `db` on `db`.`id`=`string`.`id` WHERE `db`.`key`=?", key).Scan(&value)
 	if err != nil {
@@ -51,15 +49,22 @@ func (self *StringAdapter) Get(key string) ([]byte, error) {
 	return value, nil
 }
 
-func (self *StringAdapter) Del(id int) error {
-	db := self.db.client.GetDB()
-	stmt, err := db.Prepare("delete from `test`.`string` where `test`.`string`.`id`=?")
-	defer stmt.Close()
-	if err != nil {
-		return err
+func (self *StringAdapter) Del(key string) error {
+	id := self.db.GetKeyID(key)
+	groups := self.db.selector.Shard(key, true)
+	for _, g := range groups {
+		db := g.GetDB(true).GetClient().GetDB()
+		stmt, err := db.Prepare("delete from `string` where `string`.`id`=?")
+		defer stmt.Close()
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec(id)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = stmt.Exec(id)
-	return err
+	return nil
 }
 
 func (self *StringAdapter) FlushAll() error {
