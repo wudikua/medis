@@ -7,6 +7,7 @@ mysql cluster work as a redis node
 * group层是虚拟的，是一组读写分离的mysql数据源
 * key会hash到某一个gourp在这个group上做读写
 * 扩容期间，会自动在多个group上做双写
+* 按照目前的架构，写瓶颈通过扩容group解决，读瓶颈通过扩容group中用于读的mysql从库解决
 
 ## 启动
 
