@@ -31,6 +31,18 @@ func (self *Selector) AddGroup(group *datasource.Group) {
 	self.runtime = append(self.runtime, group)
 }
 
+func (self *Selector) AddScaleGroup(group *datasource.Group) {
+	self.scale = make([]*datasource.Group, len(self.runtime)+1)
+	copy(self.scale, self.runtime)
+	self.scale[len(self.runtime)] = group
+}
+
+func (self *Selector) Balance() {
+	self.lock.Lock()
+	self.scaling = true
+	self.lock.Unlock()
+}
+
 // 有可能多写，所以这里group返回的是数组，那么上层应该双写
 func (self *Selector) Shard(key string, isWrite bool) []*datasource.Group {
 	data := []byte(key)

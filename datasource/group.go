@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -25,7 +26,7 @@ func NewGroup(name string) *Group {
 }
 
 func (self *Group) String() string {
-	return self.name
+	return fmt.Sprintf("name:%s clients:%s\n", self.name, self.clients)
 }
 
 func (self *Group) AddClient(client *ClientWeightWrapper) {

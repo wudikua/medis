@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"fmt"
 	"medis/mysql"
 )
 
@@ -22,6 +23,10 @@ func NewClientWeightWrapper(name string, client *mysql.MysqlClient, r int, w int
 	wrapper.p = p
 	wrapper.q = q
 	return wrapper
+}
+
+func (self *ClientWeightWrapper) String() string {
+	return fmt.Sprintf("name:%s \n client:%s \n weight:%s \n", self.name, self.client, self.Weight)
 }
 
 func (self *ClientWeightWrapper) GetClient() *mysql.MysqlClient {

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"medis/adapter"
+	"medis/admin"
 	"medis/datasource"
 	"medis/mysql"
 	"medis/proxy"
@@ -16,6 +17,8 @@ func main() {
 	go func() {
 		http.ListenAndServe(":13800", nil)
 	}()
+	// 管理后台接口
+	admin.NewAdminServer(":13801")
 	// 创建mysql元组
 	master0, err := mysql.NewMysqlClient("root", "root", "localhost", 8889, "test", "utf8")
 	if err != nil {
@@ -27,6 +30,7 @@ func main() {
 	}
 	// 创建主从关系
 	group0 := datasource.NewGroup("group0")
+	// 0 1 0 1 代表的是 读权重是0，写权重是1，不可读，写优先级是1
 	group0.AddClient(datasource.NewClientWeightWrapper("group0_master_0", master0, 0, 1, 0, 1))
 	group0.AddClient(datasource.NewClientWeightWrapper("group0_slave_0", master0, 1, 0, 1, 0))
 	group0.Init()
