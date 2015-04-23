@@ -39,9 +39,17 @@ func (self *Selector) AddScaleGroup(group *datasource.Group) {
 
 func (self *Selector) Balance() {
 	self.lock.Lock()
+	defer self.lock.Unlock()
 	self.scaling = true
 	logger.LogDebug("balancing datasource groups")
-	self.lock.Unlock()
+}
+
+func (self *Selector) EndBalance() {
+	self.lock.Lock()
+	defer self.lock.Unlock()
+	self.scaling = false
+	self.runtime = self.scale
+	logger.LogDebug("balance finish")
 }
 
 // 有可能多写，所以这里group返回的是数组，那么上层应该双写

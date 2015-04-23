@@ -55,6 +55,7 @@ group1.Init()
 * Hgetall
 * Hset
 * Lrange
+* Mget 并行查询
 * Ping
 * Rpush
 * Set

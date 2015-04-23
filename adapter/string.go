@@ -2,10 +2,16 @@ package adapter
 
 import (
 	"fmt"
+	"sync"
 )
 
 type StringAdapter struct {
 	db *DBAdapter
+}
+
+type Pair struct {
+	idx  int
+	data []byte
 }
 
 func NewStringAdapter(db *DBAdapter) (*StringAdapter, error) {
@@ -47,6 +53,38 @@ func (self *StringAdapter) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+func (self *StringAdapter) MGet(keys []string) ([][]byte, error) {
+	result := make([][]byte, len(keys))
+	dataC := make(chan Pair, len(keys))
+	errC := make(chan error, len(keys))
+	var wg sync.WaitGroup
+	for i, key := range keys {
+		wg.Add(1)
+		go func() {
+			qkey := key
+			qi := i
+			wg.Done()
+			data, err := self.Get(qkey)
+			if err != nil {
+				errC <- err
+			}
+			dataC <- Pair{qi, data}
+		}()
+		wg.Wait()
+	}
+	finish := 0
+	for finish < len(keys) {
+		select {
+		case pair := <-dataC:
+			result[pair.idx] = pair.data
+		case err := <-errC:
+			return nil, err
+		}
+		finish += 1
+	}
+	return result, nil
 }
 
 func (self *StringAdapter) Del(key string) error {

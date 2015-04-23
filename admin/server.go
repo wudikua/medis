@@ -73,6 +73,11 @@ func (self *AdminServer) Balance(w http.ResponseWriter, r *http.Request, _ httpr
 	w.Write([]byte("success"))
 }
 
+func (self *AdminServer) EndBalance(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	self.selector.EndBalance()
+	w.Write([]byte("success"))
+}
+
 func (self *AdminServer) DisplayError(err error, w io.Writer) {
 	w.Write([]byte(err.Error()))
 }
@@ -92,5 +97,6 @@ func NewAdminServer(addr string) {
 	router.GET("/group/add", Server.AddDs2Group)
 	router.GET("/group/new", Server.NewGroup)
 	router.GET("/group/balance", Server.Balance)
+	router.GET("/group/endbalance", Server.EndBalance)
 	go http.ListenAndServe(addr, router)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"medis/adapter"
+	"medis/logger"
 	"medis/rdb"
 	"medis/replication"
 	"sync"
@@ -103,6 +104,11 @@ func (self *MedisHandler) FlushAll() error {
 
 func (self *MedisHandler) Get(key string) ([]byte, error) {
 	return self.stringAdapter.Get(key)
+}
+
+func (self *MedisHandler) Mget(keys []string) ([][]byte, error) {
+	logger.LogDebug("mget", keys)
+	return self.stringAdapter.MGet(keys)
 }
 
 func (self *MedisHandler) Set(key string, value []byte) error {
