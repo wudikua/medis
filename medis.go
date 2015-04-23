@@ -42,6 +42,7 @@ func main() {
 	selector := shard.NewSelector("test_selector")
 	selector.AddGroup(group0)
 	selector.AddGroup(group1)
+	admin.RegisterSelector(selector)
 	// 创建REDIS到数据库的适配器
 	dbAdapter, _ := adapter.NewDBAdapter(selector)
 	// 创建REDIS协议的Handler

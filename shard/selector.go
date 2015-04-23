@@ -40,6 +40,7 @@ func (self *Selector) AddScaleGroup(group *datasource.Group) {
 func (self *Selector) Balance() {
 	self.lock.Lock()
 	self.scaling = true
+	logger.LogDebug("balancing datasource groups")
 	self.lock.Unlock()
 }
 

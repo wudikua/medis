@@ -32,6 +32,20 @@ group1.Init()
 * 所以低优先级的mysql可以理解为备机
 * 其次读写权重的意义是，按照权重的来选择用哪个mysql，一般写只有一个，所以写权重意义目前不大
 
+## 动态扩容
+
+* 扩容通过medis的admin对外提供的HTTP端口来操作
+
+### 1. 对medis添加新的group
+
+* 创建一个group http://localhost:13801/group/new?group_name=group2
+
+* 向这个group添加mysql主库 http://localhost:13801/group/add?group_name=group2&name=root&pwd=root&host=localhost&port=8889&db=test2&charset=utf8&w=1&p=0&r=1&q=0&ds_name=group2_master&group_name=group2
+
+* 向这个group添加mysql从库 http://localhost:13801/group/add?group_name=group2&name=root&pwd=root&host=localhost&port=8889&db=test2&charset=utf8&w=0&p=1&r=0&q=1&ds_name=group2_slave&group_name=group2
+
+* 对group2进行balance http://localhost:13801/group/balance?group_name=group2
+
 ## 已经兼容的redis操作列表
 
 * Del
